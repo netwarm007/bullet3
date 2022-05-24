@@ -847,6 +847,7 @@ enum EnumUserDebugDrawFlags
 	USER_DEBUG_HAS_PARENT_OBJECT = 1024,
 	USER_DEBUG_HAS_REPLACE_ITEM_UNIQUE_ID = 2048,
 	USER_DEBUG_REMOVE_ALL_PARAMETERS = 4096,
+	USER_DEBUG_HAS_POINTS = 8192,
 };
 
 struct UserDebugDrawArgs
@@ -876,6 +877,9 @@ struct UserDebugDrawArgs
 	double m_objectDebugColorRGB[3];
 	int m_objectUniqueId;
 	int m_linkIndex;
+
+	int m_debugPointNum;
+	double m_pointSize;
 };
 
 struct UserDebugDrawResultArgs
@@ -1066,7 +1070,6 @@ struct b3CreateMultiBodyArgs
 	int m_flags;
 	int m_numBatchObjects;
 
-	const char* m_linkNames[MAX_CREATE_MULTI_BODY_LINKS];
 };
 
 struct b3CreateMultiBodyResultArgs

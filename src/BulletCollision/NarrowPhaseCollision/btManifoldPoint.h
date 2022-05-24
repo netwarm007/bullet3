@@ -1,6 +1,6 @@
 /*
 Bullet Continuous Collision Detection and Physics Library
-Copyright (c) 2003-2006 Erwin Coumans  http://continuousphysics.com/Bullet/
+Copyright (c) 2003-2006 Erwin Coumans  https://bulletphysics.org
 
 This software is provided 'as-is', without any express or implied warranty.
 In no event will the authors be held liable for any damages arising from the use of this software.
@@ -71,9 +71,9 @@ public:
 					const btVector3& normal,
 					btScalar distance) : m_localPointA(pointA),
 										 m_localPointB(pointB),
-										 m_normalWorldOnB(normal),
                      m_positionWorldOnB(0,0,0),
                      m_positionWorldOnA(0,0,0),
+										 m_normalWorldOnB(normal),
 										 m_distance1(distance),
 										 m_combinedFriction(btScalar(0.)),
 										 m_combinedRollingFriction(btScalar(0.)),

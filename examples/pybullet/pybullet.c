@@ -6398,6 +6398,119 @@ static PyObject* pybullet_addUserDebugLine(PyObject* self, PyObject* args, PyObj
 	}
 }
 
+static int extractVertices(PyObject* verticesObj, double* vertices, int maxNumVertices)
+{
+	int numVerticesOut = 0;
+
+	if (verticesObj)
+	{
+		PyObject* seqVerticesObj = PySequence_Fast(verticesObj, "expected a sequence of vertex positions");
+		if (seqVerticesObj)
+		{
+			int numVerticesSrc = PySequence_Size(seqVerticesObj);
+			{
+				int i;
+
+				if (numVerticesSrc > maxNumVertices)
+				{
+					PyErr_SetString(SpamError, "Number of vertices exceeds the maximum.");
+					Py_DECREF(seqVerticesObj);
+					return 0;
+				}
+				for (i = 0; i < numVerticesSrc; i++)
+				{
+					PyObject* vertexObj = PySequence_GetItem(seqVerticesObj, i);
+					double vertex[3];
+					if (pybullet_internalSetVectord(vertexObj, vertex))
+					{
+						if (vertices)
+						{
+							vertices[numVerticesOut * 3 + 0] = vertex[0];
+							vertices[numVerticesOut * 3 + 1] = vertex[1];
+							vertices[numVerticesOut * 3 + 2] = vertex[2];
+						}
+						numVerticesOut++;
+					}
+				}
+			}
+		}
+	}
+	return numVerticesOut;
+}
+
+static PyObject* pybullet_addUserDebugPoints(PyObject* self, PyObject* args, PyObject* keywds)
+{
+	b3SharedMemoryCommandHandle commandHandle;
+	b3SharedMemoryStatusHandle statusHandle;
+	int statusType;
+	int res = 0;
+
+	int parentObjectUniqueId = -1;
+	int parentLinkIndex = -1;
+
+	PyObject* pointPositionsObj = 0;
+	PyObject* pointColorsObj = 0;
+	double pointSize = 1.f;
+	double lifeTime = 0.f;
+	int physicsClientId = 0;
+	int debugItemUniqueId = -1;
+	int replaceItemUniqueId = -1;
+	b3PhysicsClientHandle sm = 0;
+	static char* kwlist[] = {"pointPositions", "pointColorsRGB", "pointSize", "lifeTime", "parentObjectUniqueId", "parentLinkIndex", "replaceItemUniqueId", "physicsClientId", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, keywds, "OO|ddiiii", kwlist, &pointPositionsObj, &pointColorsObj, &pointSize, &lifeTime, &parentObjectUniqueId, &parentLinkIndex, &replaceItemUniqueId, &physicsClientId))
+	{
+		return NULL;
+	}
+	sm = getPhysicsClient(physicsClientId);
+	if (sm == 0)
+	{
+		PyErr_SetString(SpamError, "Not connected to physics server.");
+		return NULL;
+	}
+
+	int numPositions = extractVertices(pointPositionsObj, 0, B3_MAX_NUM_VERTICES);
+	if (numPositions == 0) {
+		return NULL;
+	}
+	double* pointPositions = numPositions ? malloc(numPositions * 3 * sizeof(double)) : 0;
+	numPositions = extractVertices(pointPositionsObj, pointPositions, B3_MAX_NUM_VERTICES);
+
+	int numColors = extractVertices(pointColorsObj, 0, B3_MAX_NUM_VERTICES);
+	double* pointColors = numColors ? malloc(numColors * 3 * sizeof(double)) : 0;
+	numColors = extractVertices(pointColorsObj, pointColors, B3_MAX_NUM_VERTICES);
+	if (numColors != numPositions) {
+		PyErr_SetString(SpamError, "numColors must match numPositions.");
+		return NULL;
+	}
+
+	commandHandle = b3InitUserDebugDrawAddPoints3D(sm, pointPositions, pointColors, pointSize, lifeTime, numPositions);
+
+	free(pointPositions);
+	free(pointColors);
+
+	if (parentObjectUniqueId >= 0)
+	{
+		b3UserDebugItemSetParentObject(commandHandle, parentObjectUniqueId, parentLinkIndex);
+	}
+
+	if (replaceItemUniqueId >= 0)
+	{
+		b3UserDebugItemSetReplaceItemUniqueId(commandHandle, replaceItemUniqueId);
+	}
+
+	statusHandle = b3SubmitClientCommandAndWaitStatus(sm, commandHandle);
+	statusType = b3GetStatusType(statusHandle);
+	if (statusType == CMD_USER_DEBUG_DRAW_COMPLETED)
+	{
+		debugItemUniqueId = b3GetDebugItemUniqueId(statusHandle);
+	}
+	{
+		PyObject* item = PyInt_FromLong(debugItemUniqueId);
+		return item;
+	}
+}
+
 static PyObject* pybullet_removeUserDebugItem(PyObject* self, PyObject* args, PyObject* keywds)
 {
 	b3SharedMemoryCommandHandle commandHandle;
@@ -8519,46 +8632,6 @@ static PyObject* pybullet_enableJointForceTorqueSensor(PyObject* self, PyObject*
 	return NULL;
 }
 
-static int extractVertices(PyObject* verticesObj, double* vertices, int maxNumVertices)
-{
-	int numVerticesOut = 0;
-
-	if (verticesObj)
-	{
-		PyObject* seqVerticesObj = PySequence_Fast(verticesObj, "expected a sequence of vertex positions");
-		if (seqVerticesObj)
-		{
-			int numVerticesSrc = PySequence_Size(seqVerticesObj);
-			{
-				int i;
-
-				if (numVerticesSrc > B3_MAX_NUM_VERTICES)
-				{
-					PyErr_SetString(SpamError, "Number of vertices exceeds the maximum.");
-					Py_DECREF(seqVerticesObj);
-					return 0;
-				}
-				for (i = 0; i < numVerticesSrc; i++)
-				{
-					PyObject* vertexObj = PySequence_GetItem(seqVerticesObj, i);
-					double vertex[3];
-					if (pybullet_internalSetVectord(vertexObj, vertex))
-					{
-						if (vertices)
-						{
-							vertices[numVerticesOut * 3 + 0] = vertex[0];
-							vertices[numVerticesOut * 3 + 1] = vertex[1];
-							vertices[numVerticesOut * 3 + 2] = vertex[2];
-						}
-						numVerticesOut++;
-					}
-				}
-			}
-		}
-	}
-	return numVerticesOut;
-}
-
 static int extractUVs(PyObject* uvsObj, double* uvs, int maxNumVertices)
 {
 	int numUVOut = 0;
@@ -9596,19 +9669,19 @@ static PyObject* pybullet_createMultiBody(PyObject* self, PyObject* args, PyObje
 	PyObject* linkInertialFramePositionObj = 0;
 	PyObject* linkInertialFrameOrientationObj = 0;
 	PyObject* objBatchPositions = 0;
-	PyObject* linkNamesObj = 0;
+	
 
 	static char* kwlist[] = {
 		"baseMass", "baseCollisionShapeIndex", "baseVisualShapeIndex", "basePosition", "baseOrientation",
 		"baseInertialFramePosition", "baseInertialFrameOrientation", "linkMasses", "linkCollisionShapeIndices",
 		"linkVisualShapeIndices", "linkPositions", "linkOrientations", "linkInertialFramePositions", "linkInertialFrameOrientations", "linkParentIndices",
-		"linkJointTypes", "linkJointAxis", "useMaximalCoordinates", "flags", "batchPositions", "linkNames", "physicsClientId", NULL};
+		"linkJointTypes", "linkJointAxis", "useMaximalCoordinates", "flags", "batchPositions", "physicsClientId", NULL};
 
-	if (!PyArg_ParseTupleAndKeywords(args, keywds, "|diiOOOOOOOOOOOOOOiiOOi", kwlist,
+	if (!PyArg_ParseTupleAndKeywords(args, keywds, "|diiOOOOOOOOOOOOOOiiOi", kwlist,
 									 &baseMass, &baseCollisionShapeIndex, &baseVisualShapeIndex, &basePosObj, &baseOrnObj,
 									 &baseInertialFramePositionObj, &baseInertialFrameOrientationObj, &linkMassesObj, &linkCollisionShapeIndicesObj,
 									 &linkVisualShapeIndicesObj, &linkPositionsObj, &linkOrientationsObj, &linkInertialFramePositionObj, &linkInertialFrameOrientationObj, &linkParentIndicesObj,
-									 &linkJointTypesObj, &linkJointAxisObj, &useMaximalCoordinates, &flags, &objBatchPositions, &linkNamesObj, &physicsClientId))
+									 &linkJointTypesObj, &linkJointAxisObj, &useMaximalCoordinates, &flags, &objBatchPositions, &physicsClientId))
 	{
 		return NULL;
 	}
@@ -9645,7 +9718,6 @@ static PyObject* pybullet_createMultiBody(PyObject* self, PyObject* args, PyObje
 		PyObject* seqLinkInertialFrameOrientations = linkInertialFrameOrientationObj ? PySequence_Fast(linkInertialFrameOrientationObj, "expected a sequence") : 0;
 
 		PyObject* seqBatchPositions = objBatchPositions ? PySequence_Fast(objBatchPositions, "expected a sequence") : 0;
-		PyObject* seqLinkNames = linkNamesObj ? PySequence_Fast(linkNamesObj, "expected a sequence") : 0;
 
 		if ((numLinkMasses == numLinkCollisionShapes) &&
 			(numLinkMasses == numLinkVisualShapes) &&
@@ -9705,7 +9777,6 @@ static PyObject* pybullet_createMultiBody(PyObject* self, PyObject* args, PyObje
 				pybullet_internalGetVector3FromSequence(seqLinkJoinAxis, i, linkJointAxis);
 				linkParentIndex = pybullet_internalGetIntFromSequence(seqLinkParentIndices, i);
 				linkJointType = pybullet_internalGetIntFromSequence(seqLinkJointTypes, i);
-				linkName = seqLinkNames? pybullet_internalGetCStringFromSequence(seqLinkNames, i) : 0;
 
 				b3CreateMultiBodyLink(commandHandle,
 									  linkMass,
@@ -9717,8 +9788,7 @@ static PyObject* pybullet_createMultiBody(PyObject* self, PyObject* args, PyObje
 									  linkInertialFrameOrientation,
 									  linkParentIndex,
 									  linkJointType,
-									  linkJointAxis,
-									  linkName);
+									  linkJointAxis);
 			}
 
 			if (seqLinkMasses)
@@ -12839,6 +12909,10 @@ static PyMethodDef SpamMethods[] = {
 	 "Add a user debug draw line with lineFrom[3], lineTo[3], lineColorRGB[3], lineWidth, lifeTime. "
 	 "A lifeTime of 0 means permanent until removed. Returns a unique id for the user debug item."},
 
+	{"addUserDebugPoints", (PyCFunction)pybullet_addUserDebugPoints, METH_VARARGS | METH_KEYWORDS,
+	 "Add user debug draw points with pointPositions[3], pointColorsRGB[3], pointSize, lifeTime. "
+	 "A lifeTime of 0 means permanent until removed. Returns a unique id for the user debug item."},
+
 	{"addUserDebugText", (PyCFunction)pybullet_addUserDebugText, METH_VARARGS | METH_KEYWORDS,
 	 "Add a user debug draw line with text, textPosition[3], textSize and lifeTime in seconds "
 	 "A lifeTime of 0 means permanent until removed. Returns a unique id for the user debug item."},
@@ -13179,6 +13253,7 @@ initpybullet(void)
 	//PyModule_AddIntConstant(m, "CONSTRAINT_SOLVER_LCP_BLOCK",eConstraintSolverLCP_BLOCK_PGS);
 
 	PyModule_AddIntConstant(m, "RESET_USE_DEFORMABLE_WORLD", RESET_USE_DEFORMABLE_WORLD);
+	PyModule_AddIntConstant(m, "RESET_USE_REDUCED_DEFORMABLE_WORLD", RESET_USE_REDUCED_DEFORMABLE_WORLD);
 	PyModule_AddIntConstant(m, "RESET_USE_DISCRETE_DYNAMICS_WORLD", RESET_USE_DISCRETE_DYNAMICS_WORLD);
 	PyModule_AddIntConstant(m, "RESET_USE_SIMPLE_BROADPHASE", RESET_USE_SIMPLE_BROADPHASE);
 
