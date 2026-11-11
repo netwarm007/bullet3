@@ -1,19 +1,9 @@
-cmake_minimum_required(VERSION 2.4.3)
-set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true)
-cmake_policy(SET CMP0017 NEW)
+cmake_minimum_required(VERSION 4.0)
 #this line has to appear before 'PROJECT' in order to be able to disable incremental linking
 SET(MSVC_INCREMENTAL_DEFAULT ON)
 
 PROJECT(BULLET_PHYSICS)
 FILE (STRINGS "VERSION" BULLET_VERSION)
-
-IF(COMMAND cmake_policy)
-   cmake_policy(SET CMP0003 NEW)
-   if(POLICY CMP0042)
-      # Enable MACOSX_RPATH by default.
-      cmake_policy(SET CMP0042 NEW)
-   endif(POLICY CMP0042)
-ENDIF(COMMAND cmake_policy)
 
 IF (NOT CMAKE_BUILD_TYPE)
 # SET(CMAKE_BUILD_TYPE "Debug")
@@ -417,7 +407,7 @@ ELSE(BUILD_BULLET3)
 ENDIF(BUILD_BULLET3)
 IF(BUILD_OPENGL3_DEMOS)
 	IF(EXISTS ${BULLET_PHYSICS_SOURCE_DIR}/Demos3 AND IS_DIRECTORY ${BULLET_PHYSICS_SOURCE_DIR}/Demos3)
-		SUBDIRS(Demos3)
+		add_subdirectory(Demos3)
 	ENDIF()
 ELSE()
 	ADD_DEFINITIONS(-DNO_OPENGL3)
@@ -427,7 +417,7 @@ OPTION(BUILD_BULLET2_DEMOS "Set when you want to build the Bullet 2 demos" ON)
 IF(BUILD_BULLET2_DEMOS)
 
 	IF(EXISTS ${BULLET_PHYSICS_SOURCE_DIR}/examples AND IS_DIRECTORY ${BULLET_PHYSICS_SOURCE_DIR}/examples)
-		SUBDIRS(examples)
+		add_subdirectory(examples)
 	ENDIF()
 
 ENDIF(BUILD_BULLET2_DEMOS)
@@ -436,10 +426,10 @@ ENDIF(BUILD_BULLET2_DEMOS)
 
 OPTION(BUILD_EXTRAS "Set when you want to build the extras" ON)
 IF(BUILD_EXTRAS)
-  SUBDIRS(Extras)
+	add_subdirectory(Extras)
 ENDIF(BUILD_EXTRAS)
 
-SUBDIRS(src)
+add_subdirectory(src)
 
 IF("${CMAKE_GENERATOR}" MATCHES "Unix Makefiles")
 	OPTION(INSTALL_LIBS "Set when you want to install libraries" ON)
@@ -481,7 +471,7 @@ OPTION(BUILD_UNIT_TESTS "Build Unit Tests"	ON)
 
 IF (BUILD_UNIT_TESTS)
 	ENABLE_TESTING()
-	SUBDIRS(test)
+	add_subdirectory(test)
 ENDIF()
 
 set (BULLET_CONFIG_CMAKE_PATH lib${LIB_SUFFIX}/cmake/bullet )

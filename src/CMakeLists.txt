@@ -1,10 +1,19 @@
 
 IF(BUILD_BULLET3)
-	SUBDIRS(  Bullet3OpenCL Bullet3Serialize/Bullet2FileLoader Bullet3Dynamics Bullet3Collision Bullet3Geometry )
+	add_subdirectory(Bullet3OpenCL)
+	add_subdirectory(Bullet3Serialize/Bullet2FileLoader)
+	add_subdirectory(Bullet3Dynamics)
+	add_subdirectory(Bullet3Collision)
+	add_subdirectory(Bullet3Geometry)
 ENDIF(BUILD_BULLET3)
 
 
-SUBDIRS(   BulletInverseDynamics BulletSoftBody BulletCollision BulletDynamics LinearMath Bullet3Common)
+add_subdirectory(BulletInverseDynamics)
+add_subdirectory(BulletSoftBody)
+add_subdirectory(BulletCollision)
+add_subdirectory(BulletDynamics)
+add_subdirectory(LinearMath)
+add_subdirectory(Bullet3Common)
 
 
 IF(INSTALL_LIBS)
