@@ -429,8 +429,6 @@ IF(BUILD_EXTRAS)
 	add_subdirectory(Extras)
 ENDIF(BUILD_EXTRAS)
 
-add_subdirectory(src)
-
 IF("${CMAKE_GENERATOR}" MATCHES "Unix Makefiles")
 	OPTION(INSTALL_LIBS "Set when you want to install libraries" ON)
 ELSE()
@@ -465,6 +463,8 @@ IF(INSTALL_LIBS)
 		${PKGCONFIG_INSTALL_PREFIX})
 	ENDIF(NOT MSVC)
 ENDIF()
+
+add_subdirectory(src)
 
 
 OPTION(BUILD_UNIT_TESTS "Build Unit Tests"	ON)
